@@ -30,7 +30,7 @@ namespace OSD
         MissionPlanner.Utilities.Firmware fw = new MissionPlanner.Utilities.Firmware();
         public static string comPortName = "";
         static internal ICommsSerial comPort;
-        
+
         byte[] eeprom = new byte[1024];
         byte[] paramdefault = new byte[1024];
 
@@ -38,6 +38,8 @@ namespace OSD
         string currentVersion = "1.0.1.4";
         bool bCheckUpdateStartup = false;
         short firmwareVesion = 10;
+
+        private StreamWriter fileLog = File.AppendText("config_log.txt");
 
         // Changes made to the params between writing to the copter
         readonly Hashtable _changes = new Hashtable();
@@ -116,6 +118,8 @@ namespace OSD
         public Bitmap objBitmap = new Bitmap(1024, 1024, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
         public PlayuavOSD()
         {
+            this.fileLog.WriteLine("New config instance");
+            this.fileLog.Flush();
             self = this;
             InitializeComponent();
             SIZE_TO_FONT.Add(5);
@@ -149,7 +153,7 @@ namespace OSD
 
             this.Text = this.Text + "-V" + currentVersion;
 
-            
+
             CheckNewVersion();
             lab_last_firmware.Text = "Latest Firmware Version:" + Convert.ToString(firmwareVesion);
             //timer1.Start();
@@ -181,11 +185,15 @@ namespace OSD
 
         public void __send(byte c)
         {
+            this.fileLog.WriteLine("writing 1 byte(s): -" + string.Join(",", c) + "-");
+            this.fileLog.Flush();
             comPort.Write(new byte[] { c }, 0, 1);
         }
 
         public void __send(byte[] c)
         {
+            this.fileLog.WriteLine("writing " + c.Length + " byte(s): -" + string.Join(",", c) + "-");
+            this.fileLog.Flush();
             comPort.Write(c, 0, c.Length);
         }
 
@@ -197,7 +205,8 @@ namespace OSD
             int pos = 0;
             while (pos < count)
                 pos += comPort.Read(c, pos, count - pos);
-
+            this.fileLog.WriteLine("reading " + count + " bytes: -" + string.Join(",", c) + "-");
+            this.fileLog.Flush();
             return c;
         }
 
@@ -322,7 +331,7 @@ namespace OSD
                 CustomMessageBox.Show("Bad parameter");
                 return "";
             }
-            
+
             return strRet;
         }
 
@@ -340,7 +349,7 @@ namespace OSD
                 CustomMessageBox.Show("Bad parameter");
                 return 0;
             }
-            
+
             return ret;
         }
 
@@ -377,7 +386,7 @@ namespace OSD
                 CustomMessageBox.Show("Bad parameter");
                 return "";
             }
-            
+
             return strRet;
         }
 
@@ -414,7 +423,7 @@ namespace OSD
                 CustomMessageBox.Show("Bad parameter");
                 return "";
             }
-            
+
             return panelValF2Str(a);
         }
 
@@ -448,7 +457,7 @@ namespace OSD
 
             try
             {
-                // Create a request using a URL that can receive a post. 
+                // Create a request using a URL that can receive a post.
                 WebRequest request = WebRequest.Create(baseurl);
                 request.Timeout = 10000;
                 // Set the Method property of the request to POST.
@@ -514,9 +523,9 @@ namespace OSD
 
                 fw.UploadFlash(comPortName, fs.Name, boardtype);
             }
-            catch { 
-                 CustomMessageBox.Show("Error receiving firmware", Strings.ERROR); 
-                return; 
+            catch {
+                 CustomMessageBox.Show("Error receiving firmware", Strings.ERROR);
+                return;
             }
         }
 
@@ -1066,7 +1075,7 @@ namespace OSD
 
             //0:absolute altitude 1:relative altitude
             _paramsAddr["Altitude_Scale_Type"] = address; address += 2;
-            u16toEPPROM(paramdefault, (int)_paramsAddr["Altitude_Scale_Type"], 1);  
+            u16toEPPROM(paramdefault, (int)_paramsAddr["Altitude_Scale_Type"], 1);
 
             //AirSpeed
             _paramsAddr["Speed_Air_Enable"] = address; address += 2;
@@ -1093,7 +1102,7 @@ namespace OSD
 
             //1:4800、2:9600、3:19200、4:38400、5:43000、6:56000、7:57600、8:115200
             _paramsAddr["Misc_USART_BandRate"] = address; address += 2;
-            u16toEPPROM(paramdefault, (int)_paramsAddr["Misc_USART_BandRate"], 7); 
+            u16toEPPROM(paramdefault, (int)_paramsAddr["Misc_USART_BandRate"], 7);
         }
 
         internal PlayuavOSD.data genChildData(string root, string name, string value, string unit, string range, string desc)
@@ -1402,7 +1411,7 @@ namespace OSD
             dataSpeed.children.Add(genChildData(dataSpeed.paramname, "Air_H_Position", getU16ParamString(eeprom, (int)_paramsAddr["Speed_Air_H_Position"]), "", "0 - 350", lang.getLangStr("hpos")));
             dataSpeed.children.Add(genChildData(dataSpeed.paramname, "Air_V_Position", getU16ParamString(eeprom, (int)_paramsAddr["Speed_Air_V_Position"]), "", "0 - 230", lang.getLangStr("vpos")));
             dataSpeed.children.Add(genChildData(dataSpeed.paramname, "Air_Font_Size", getU16ParamString(eeprom, (int)_paramsAddr["Speed_Air_Font_Size"]), "", "0, 1, 2", lang.getLangStr("font")));
-            dataSpeed.children.Add(genChildData(dataSpeed.paramname, "Air_H_Alignment", getU16ParamString(eeprom, (int)_paramsAddr["Speed_Air_H_Alignment"]), "", "0, 1, 2", lang.getLangStr("halign")));        
+            dataSpeed.children.Add(genChildData(dataSpeed.paramname, "Air_H_Alignment", getU16ParamString(eeprom, (int)_paramsAddr["Speed_Air_H_Alignment"]), "", "0, 1, 2", lang.getLangStr("halign")));
             dataSpeed.children.Add(genChildData(dataSpeed.paramname, "Scale_Enable", getU16ParamString(eeprom, (int)_paramsAddr["Speed_Scale_Enable"]), "", "0, 1", lang.getLangStr("Speed_Scale_Enable")));
             dataSpeed.children.Add(genChildData(dataSpeed.paramname, "Scale_Type", getU16ParamString(eeprom, (int)_paramsAddr["Speed_Scale_Type"]), "", "0, 1", lang.getLangStr("Speed_Scale_Type")));
             dataSpeed.children.Add(genChildData(dataSpeed.paramname, "Scale_Panel", getU16PanelString(eeprom, (int)_paramsAddr["Speed_Scale_Panel"]), "", "1 - Max_Panels", lang.getLangStr("panel")));
@@ -1610,11 +1619,11 @@ namespace OSD
                     //_changes[((data)e.RowObject).paramname] = newvalue;
                     _changes[paramsfullname] = newvalue;
 
-                    
+
                     if (paramsfullname.Contains("Attitude_") && paramsfullname.Contains("_Scale"))
                     {
                         //this is size scale, divide into two parts for storing
-                        
+
                         short temp = Convert.ToInt16(Math.Floor(newvalue));
                         u16toEPPROM(eeprom, (int)_paramsAddr[paramsfullname + "_Real"], temp);
                         newvalue -= temp;
@@ -1638,7 +1647,7 @@ namespace OSD
                     {
                         u16toEPPROM(eeprom, (int)_paramsAddr[paramsfullname], Convert.ToInt16(newvalue));
                     }
-                
+
 
                     ((data)e.RowObject).Value = e.NewValue.ToString();
 
@@ -1737,14 +1746,14 @@ namespace OSD
                 {
                     MessageBox.Show(lang.getLangStr("successed"), "Message", MessageBoxButtons.OK, MessageBoxIcon.None);
                 }
-                
+
             }
-            catch 
+            catch
             {
                 paramdefault.CopyTo(eeprom, 0);
                 MessageBox.Show(lang.getLangStr("failed"), "Message", MessageBoxButtons.OK, MessageBoxIcon.None);
             }
-            
+
         }
 
         private void Save_To_OSD_Click(object sender, EventArgs e)
@@ -1959,8 +1968,8 @@ namespace OSD
             Params.Columns[2].Width = (int)(Params.Size.Width * 0.1);
             Params.Columns[3].Width = (int)(Params.Size.Width * 0.25);
             Params.Columns[4].Width = (int)(Params.Size.Width * 0.45);
-            
-             
+
+
         }
 
         private void saveOSDFileToolStripMenuItem_Click(object sender, EventArgs e)
@@ -2010,7 +2019,7 @@ namespace OSD
                                 value = float.Parse(item.Value.ToString());
                             }
 
-                            
+
 
 
                             data[fullparamname] = value;
@@ -2159,7 +2168,7 @@ namespace OSD
             {
                 GL.PushAttrib(AttribMask.DepthBufferBit);
                 GL.Disable(EnableCap.DepthTest);
-                //GL.Enable(EnableCap.Texture2D); 
+                //GL.Enable(EnableCap.Texture2D);
                 GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
                 GL.Enable(EnableCap.Blend);
 
@@ -2216,7 +2225,7 @@ namespace OSD
             GL.Viewport(0, 0, w, h); // Use all of the glControl painting area
         }
 
-        
+
 
         bool bShownAtPanle(short itemPanel, short curPanle)
         {
@@ -2266,10 +2275,10 @@ namespace OSD
             	CustomMessageBox.Show("Bad parameter");
                 return;
             }
-            
+
         }
 
-        
+
         void doPaint(PaintEventArgs e)
         {
             int width = glControl1.Width;
@@ -2317,7 +2326,7 @@ namespace OSD
 
                 ogl.FillRectangle(linearBrush, bg);
             }
-            //draw 
+            //draw
             //ogl.DrawLine(whitePen, 0, halfheight, width, halfheight);
             //ogl.DrawLine(whitePen, 180, 0, 180, height);
 
@@ -2372,7 +2381,7 @@ namespace OSD
             iposY = getU16Param(eeprom, (int)_paramsAddr["Alarm_V_Position"]);
             ifont = getU16Param(eeprom, (int)_paramsAddr["Alarm_Font_Size"]);
             ifontalign = getU16Param(eeprom, (int)_paramsAddr["Alarm_H_Alignment"]);
-            
+
             strOffset = ogl.calstring("NO GPS FIX", font, SIZE_TO_FONT[ifont], whiteBrush, ifontalign);
             ogl.drawstring("NO GPS FIX", font, SIZE_TO_FONT[ifont], whiteBrush, iposX - strOffset, iposY);
 
@@ -2820,7 +2829,7 @@ namespace OSD
                 	CustomMessageBox.Show("Bad parameter of Attitude_3D");
                     return;
                 }
-                
+
 
                 PointF[] plist = new PointF[8];
                 float a = (float)(24.0 * scale);
@@ -2921,7 +2930,7 @@ namespace OSD
             {
             	CustomMessageBox.Show("Bad parameter of FC_Type");
             }
-            
+
         }
 
         private void exitToolStripMenuItem_Click(object sender, EventArgs e)

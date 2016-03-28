@@ -36,6 +36,8 @@ namespace px4uploader
         public int bl_rev;
         public bool libre = false;
 
+        private StreamWriter fileLog = File.AppendText("upload_log.txt");
+
         public enum Code : byte
         {
             // response codes
@@ -54,14 +56,14 @@ namespace px4uploader
             PROG_MULTI = 0x27,
             READ_MULTI = 0x28,//# rev2 only
             GET_CRC = 0x29,//	# rev3+
-            GET_OTP = 0x2a, // read a byte from OTP at the given address 
-            GET_SN = 0x2b,    // read a word from UDID area ( Serial)  at the given address 
+            GET_OTP = 0x2a, // read a byte from OTP at the given address
+            GET_SN = 0x2b,    // read a word from UDID area ( Serial)  at the given address
             GET_CHIP = 0x2c, // read chip version (MCU IDCODE)
             REBOOT = 0x30,
 
             INFO_BL_REV = 1,//	# bootloader protocol revision
-            BL_REV_MIN = 2,//	# minimum supported bootloader protocol 
-            BL_REV_MAX = 4,//	# maximum supported bootloader protocol 
+            BL_REV_MIN = 2,//	# minimum supported bootloader protocol
+            BL_REV_MAX = 4,//	# maximum supported bootloader protocol
             INFO_BOARD_ID = 2,//	# board type
             INFO_BOARD_REV = 3,//	# board revision
             INFO_FLASH_SIZE = 4,//	# max firmware size in bytes
@@ -96,6 +98,8 @@ namespace px4uploader
 
         public Uploader(string port, int baudrate)
         {
+            this.fileLog.WriteLine("New uploader instance");
+            this.fileLog.Flush();
             self = this;
 
             if (port.StartsWith("/"))
@@ -137,6 +141,8 @@ namespace px4uploader
         {
             try
             {
+                this.fileLog.WriteLine("closing");
+                this.fileLog.Flush();
                 port.Close();
             }
             catch { }
@@ -307,7 +313,7 @@ namespace px4uploader
                     }
 
                 }
-                catch 
+                catch
                 {
                     print("Failed to read Certificate of Authenticity");
                     throw;
@@ -363,11 +369,15 @@ namespace px4uploader
 
         public void __send(byte c)
         {
+            this.fileLog.WriteLine("writing 1 byte(s): -" + string.Join(",", c) + "-");
+            this.fileLog.Flush();
             port.Write(new byte[] { c }, 0, 1);
         }
 
         public void __send(byte[] c)
         {
+            this.fileLog.WriteLine("writing " + c.Length + " byte(s): -" + string.Join(",", c) + "-");
+            this.fileLog.Flush();
             port.Write(c, 0, c.Length);
         }
 
@@ -380,6 +390,8 @@ namespace px4uploader
             while (pos < count)
                 pos += port.Read(c, pos, count - pos);
 
+            this.fileLog.WriteLine("reading " + count + " bytes: -" + string.Join(",", c) + "-");
+            this.fileLog.Flush();
             return c;
         }
 
@@ -408,6 +420,8 @@ namespace px4uploader
 
         public void __sync()
         {
+            this.fileLog.WriteLine("syncing");
+            this.fileLog.Flush();
             port.BaseStream.Flush();
             __send(new byte[] { (byte)Code.GET_SYNC, (byte)Code.EOC });
             __getSync();
@@ -427,6 +441,8 @@ namespace px4uploader
 
         public int __getInfo(Code param)
         {
+            this.fileLog.WriteLine("getting info");
+            this.fileLog.Flush();
             __send(new byte[] { (byte)Code.GET_DEVICE, (byte)param, (byte)Code.EOC });
             int info = __recv_int();
             __getSync();
@@ -436,6 +452,8 @@ namespace px4uploader
 
         public void __erase()
         {
+            this.fileLog.WriteLine("erasing");
+            this.fileLog.Flush();
             __sync();
 
             __send(new byte[] { (byte)Code.CHIP_ERASE, (byte)Code.EOC });
@@ -454,6 +472,8 @@ namespace px4uploader
 
         public void __program_multi(byte[] data)
         {
+            this.fileLog.WriteLine("sending multi");
+            this.fileLog.Flush();
             __send(new byte[] { (byte)Code.PROG_MULTI, (byte)data.Length });
             __send(data);
             __send((byte)Code.EOC);
@@ -462,6 +482,8 @@ namespace px4uploader
 
         public bool __verify_multi(byte[] data)
         {
+            this.fileLog.WriteLine("verifying multi");
+            this.fileLog.Flush();
             self.__send(new byte[] { (byte)Code.READ_MULTI, chr(len(data)), (byte)Code.EOC });
             byte[] programmed = self.__recv(len(data));
             if (!isMatch(programmed,data))
@@ -504,6 +526,8 @@ namespace px4uploader
             // silent fail
             try
             {
+                this.fileLog.WriteLine("rebooting");
+                this.fileLog.Flush();
                 self.__send(new byte[] { (byte)Code.REBOOT, (byte)Code.EOC });
                 self.port.DiscardInBuffer();
             }
@@ -529,6 +553,8 @@ namespace px4uploader
 
         public void __program(Firmware fw)
         {
+            this.fileLog.WriteLine("programming");
+            this.fileLog.Flush();
             byte[] code = fw.imagebyte;
             List<byte[]> groups = self.__split_len(code, (byte)Code.PROG_MULTI_MAX);
             Console.WriteLine("Programing packet total: "+groups.Count);
@@ -547,6 +573,8 @@ namespace px4uploader
 
         public void __verify_v2(Firmware fw)
         {
+            this.fileLog.WriteLine("verifying v2");
+            this.fileLog.Flush();
             self.__send(new byte[] {(byte)Code.CHIP_VERIFY
 				, (byte)Code.EOC});
             self.__getSync();
@@ -570,7 +598,8 @@ namespace px4uploader
 
         public void __verify_v3(Firmware fw)
         {
-
+            this.fileLog.WriteLine("verifying v3");
+            this.fileLog.Flush();
             //Expected 0x33E22A51
             //Got      0x8117524C
             //System.Exception: Program CRC failed
@@ -596,6 +625,8 @@ namespace px4uploader
 
         public void currentChecksum(Firmware fw)
         {
+            this.fileLog.WriteLine("current checksum");
+            this.fileLog.Flush();
             if (self.bl_rev < 3)
                 return;
 
@@ -616,6 +647,8 @@ namespace px4uploader
 
         public void identify()
         {
+            this.fileLog.WriteLine("identify");
+            this.fileLog.Flush();
             //Console.WriteLine("0 " + DateTime.Now.Millisecond);
             // make sure we are in sync before starting
             self.__sync();
@@ -638,6 +671,8 @@ namespace px4uploader
 
         public void upload(Firmware fw)
         {
+            this.fileLog.WriteLine("uploading");
+            this.fileLog.Flush();
             this.port.ReadTimeout = 1000; // 1 sec
 
             //Make sure we are doing the right thing
@@ -651,7 +686,7 @@ namespace px4uploader
 
             print("program...");
             self.__program(fw);
-            
+
             print("verify...");
             if (self.bl_rev == 2)
                 self.__verify_v2(fw);
@@ -696,7 +731,7 @@ namespace px4uploader
             {
                 this.port.Dispose();
             }
-            catch { }            
+            catch { }
 
             this.port = null;
         }

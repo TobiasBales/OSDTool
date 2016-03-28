@@ -22,6 +22,7 @@ namespace MissionPlanner.Utilities
     {
         private static readonly ILog log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         static internal ICommsSerial comPortosdbl;
+        private StreamWriter fileLog = File.AppendText("firmware_utilities_log.txt");
 
         public event ProgressEventHandler Progress;
 
@@ -138,11 +139,15 @@ namespace MissionPlanner.Utilities
 
         public void __sendbl(byte c)
         {
+            this.fileLog.WriteLine("writing 1 byte(s): -" + string.Join(",", c) + "-");
+            this.fileLog.Flush();
             comPortosdbl.Write(new byte[] { c }, 0, 1);
         }
 
         public void __sendbl(byte[] c)
         {
+            this.fileLog.WriteLine("writing " + c.Length + " byte(s): -" + string.Join(",", c) + "-");
+            this.fileLog.Flush();
             comPortosdbl.Write(c, 0, c.Length);
         }
 
@@ -155,6 +160,8 @@ namespace MissionPlanner.Utilities
             while (pos < count)
                 pos += comPortosdbl.Read(c, pos, count - pos);
 
+            this.fileLog.WriteLine("reading " + count + " bytes: -" + string.Join(",", c) + "-");
+            this.fileLog.Flush();
             return c;
         }
 
@@ -401,7 +408,7 @@ namespace MissionPlanner.Utilities
 
         //        if (board < BoardDetect.boards.px4)
         //        {
-        //            if (temp.name.ToLower().Contains("arducopter")) 
+        //            if (temp.name.ToLower().Contains("arducopter"))
         //            {
         //                CustomMessageBox.Show("This board has been retired, Mission Planner this will upload the last available version to your board","Note");
         //            }
@@ -415,7 +422,7 @@ namespace MissionPlanner.Utilities
 
         //        log.Info("Using " + baseurl);
 
-        //        // Create a request using a URL that can receive a post. 
+        //        // Create a request using a URL that can receive a post.
         //        WebRequest request = WebRequest.Create(baseurl);
         //        request.Timeout = 10000;
         //        // Set the Method property of the request to POST.
@@ -461,11 +468,11 @@ namespace MissionPlanner.Utilities
         //        updateProgress(100, Strings.DownloadedFromInternet);
         //        log.Info("Downloaded");
         //    }
-        //    catch (Exception ex) 
-        //    { 
-        //        updateProgress(50, Strings.FailedDownload); 
-        //        CustomMessageBox.Show("Failed to download new firmware : " + ex.ToString()); 
-        //        return false; 
+        //    catch (Exception ex)
+        //    {
+        //        updateProgress(50, Strings.FailedDownload);
+        //        CustomMessageBox.Show("Failed to download new firmware : " + ex.ToString());
+        //        return false;
         //    }
 
         //    MissionPlanner.Utilities.Tracking.AddFW(temp.name, board.ToString());
@@ -477,7 +484,7 @@ namespace MissionPlanner.Utilities
         //{
         //    try
         //    {
-        //        // Create a request using a URL that can receive a post. 
+        //        // Create a request using a URL that can receive a post.
         //        HttpWebRequest request = (HttpWebRequest)HttpWebRequest.Create("http://vps.oborne.me/axs/ax.pl?" + (string)temp);
         //        //request.AllowAutoRedirect = true;
         //        request.UserAgent = MainV2.instance.Text + " (res" + Screen.PrimaryScreen.Bounds.Width + "x" + Screen.PrimaryScreen.Bounds.Height + "; " + Environment.OSVersion.VersionString + "; cores " + Environment.ProcessorCount + ")";
@@ -505,6 +512,8 @@ namespace MissionPlanner.Utilities
             try
             {
                 fw = px4uploader.Firmware.ProcessFirmware(filename);
+                this.fileLog.WriteLine("processing firmware");
+                this.fileLog.Flush();
             }
             catch (Exception ex)
             {
@@ -516,7 +525,8 @@ namespace MissionPlanner.Utilities
             {
                 //if (comPortosdbl.IsOpen())
                 comPortosdbl.Close();
-
+                this.fileLog.WriteLine("reopnening com port");
+                this.fileLog.Flush();
                 try
                 {
                     comPortosdbl.PortName = PlayuavOSD.comPortName;
@@ -526,6 +536,8 @@ namespace MissionPlanner.Utilities
                 }
                 catch { MessageBox.Show("Error opening com port", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error); return false; }
 
+                this.fileLog.WriteLine("syncing");
+                this.fileLog.Flush();
                 __syncbl();
                 __sendbl(new byte[] { (byte)Codebl.BL_UPLOAD, (byte)Codebl.EOC });
                 __getSyncbl();
@@ -566,6 +578,8 @@ namespace MissionPlanner.Utilities
             //System.Threading.Thread.Sleep(1);
             DateTime DEADLINE = DateTime.Now.AddSeconds(30);
 
+            this.fileLog.WriteLine("scanning comports");
+            this.fileLog.Flush();
             updateProgress(0, "Scanning comports");
 
             while (DateTime.Now < DEADLINE)
@@ -581,9 +595,13 @@ namespace MissionPlanner.Utilities
                     try
                     {
                         up = new Uploader(port, 115200);
+                        this.fileLog.WriteLine("connecting " + port);
+                        this.fileLog.Flush();
                     }
                     catch (Exception ex)
                     {
+                        this.fileLog.WriteLine("exception 1 " + ex.ToString());
+                        this.fileLog.Flush();
                         //System.Threading.Thread.Sleep(50);
                         Console.WriteLine(ex.Message);
                         continue;
@@ -594,12 +612,16 @@ namespace MissionPlanner.Utilities
                         up.identify();
                         updateProgress(-1, "Identify");
                         log.InfoFormat("Found board type {0} boardrev {1} bl rev {2} fwmax {3} on {4}", up.board_type, up.board_rev, up.bl_rev, up.fw_maxsize, port);
+                        this.fileLog.WriteLine("found board type " + up.board_type + " boardrev " + up.board_rev + " fmwax " + up.bl_rev + " fwmax " + up.fw_maxsize + " port " + port);
+                        this.fileLog.Flush();
 
                         up.ProgressEvent += new Uploader.ProgressEventHandler(up_ProgressEvent);
                         up.LogEvent += new Uploader.LogEventHandler(up_LogEvent);
                     }
                     catch (Exception)
                     {
+                        this.fileLog.WriteLine("exception 2 " + ex.ToString());
+                        this.fileLog.Flush();
                         Console.WriteLine("Not There..");
                         //Console.WriteLine(ex.Message);
                         up.close();
@@ -611,6 +633,8 @@ namespace MissionPlanner.Utilities
 
                     try
                     {
+                        this.fileLog.WriteLine("verifying otp");
+                        this.fileLog.Flush();
                         up.verifyotp();
 
                         if (up.libre)
@@ -624,6 +648,8 @@ namespace MissionPlanner.Utilities
                     }
                     catch (Org.BouncyCastle.Security.InvalidKeyException ex)
                     {
+                        this.fileLog.WriteLine("invalid key " + ex.ToString());
+                        this.fileLog.Flush();
                         MissionPlanner.Utilities.Tracking.AddEvent("FWUpload", "verifyotp", "InvalidKeyException", "");
                         log.Error(ex);
                         CustomMessageBox.Show("You are using unsupported hardware.\nThis board does not contain a valid certificate of authenticity.\nPlease contact your hardware vendor about signing your hardware.", "Invalid Cert");
@@ -631,6 +657,8 @@ namespace MissionPlanner.Utilities
                     }
                     catch (FormatException ex)
                     {
+                        this.fileLog.WriteLine("format exception " + ex.ToString());
+                        this.fileLog.Flush();
                         MissionPlanner.Utilities.Tracking.AddEvent("FWUpload", "verifyotp", "FormatException", "");
                         log.Error(ex);
                         CustomMessageBox.Show("You are using unsupported hardware.\nThis board does not contain a valid certificate of authenticity.\nPlease contact your hardware vendor about signing your hardware.", "Invalid Cert");
@@ -638,6 +666,8 @@ namespace MissionPlanner.Utilities
                     }
                     catch (IOException ex)
                     {
+                        this.fileLog.WriteLine("io exception " + ex.ToString());
+                        this.fileLog.Flush();
                         MissionPlanner.Utilities.Tracking.AddEvent("FWUpload", "verifyotp", "IOException", "");
                         log.Error(ex);
                         CustomMessageBox.Show("lost communication with the board.", "lost comms");
@@ -646,6 +676,8 @@ namespace MissionPlanner.Utilities
                     }
                     catch (TimeoutException ex)
                     {
+                        this.fileLog.WriteLine("timeout " + ex.ToString());
+                        this.fileLog.Flush();
                         MissionPlanner.Utilities.Tracking.AddEvent("FWUpload", "verifyotp", "TimeoutException", "");
                         log.Error(ex);
                         CustomMessageBox.Show("lost communication with the board.", "lost comms");
@@ -654,6 +686,8 @@ namespace MissionPlanner.Utilities
                     }
                     catch (Exception ex)
                     {
+                        this.fileLog.WriteLine("exception " + ex.ToString());
+                        this.fileLog.Flush();
                         MissionPlanner.Utilities.Tracking.AddEvent("FWUpload", "verifyotp", "Exception", "");
                         log.Error(ex);
                         CustomMessageBox.Show("lost communication with the board. " + ex.ToString(), "lost comms");
@@ -663,11 +697,17 @@ namespace MissionPlanner.Utilities
 
                     try
                     {
+                        this.fileLog.WriteLine("current checksum");
+                        this.fileLog.Flush();
                         up.currentChecksum(fw);
                     }
                     catch (IOException ex)
                     {
+                        this.fileLog.WriteLine("io exception " + ex.ToString());
+                        this.fileLog.Flush();
                         log.Error(ex);
+                        this.fileLog.WriteLine("lost comm to board");
+                        this.fileLog.Flush();
                         CustomMessageBox.Show("lost communication with the board.", "lost comms");
                         up.close();
                         return false;
@@ -676,18 +716,26 @@ namespace MissionPlanner.Utilities
                     {
                         up.__reboot();
                         up.close();
+                        this.fileLog.WriteLine("already up to date, not updating");
+                        this.fileLog.Flush();
                         CustomMessageBox.Show("No need to upload. already on the board");
                         return true;
                     }
 
                     try
                     {
+                        this.fileLog.WriteLine("uploading");
+                        this.fileLog.Flush();
                         updateProgress(0, "Upload");
                         up.upload(fw);
                         updateProgress(100, "Upload Done");
+                        this.fileLog.WriteLine("upload done");
+                        this.fileLog.Flush();
                     }
                     catch (Exception ex)
                     {
+                        this.fileLog.WriteLine("exception 2 " + ex.ToString());
+                        this.fileLog.Flush();
                         updateProgress(0, "ERROR: " + ex.Message);
                         log.Info(ex);
                         Console.WriteLine(ex.ToString());
